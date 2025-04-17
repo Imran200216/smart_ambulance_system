@@ -1,0 +1,39 @@
+<resources>
+    <color name="primary">#1AC0F8</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="transparent">#00000000</color>
+    <color name="grey">#999998</color>
+    <color name="authTabBarBgColor">#F5F4F4</color>
+    <color name="authErrorColor">#FF2D2D</color>
+
+    <!--  Toast bar color  -->
+    <color name="toastErrorColor">#FF2D2D</color>
+    <color name="toastSuccessColor">#02A75A</color>
+
+    <!-- Snack bar colors   -->
+    <color name="successSnackBarColor">#2E7C32</color>
+    <color name="failureSnackBarColor">#FF2D2D</color>
+    <color name="warningSnackBarColor">#EE981A</color>
+
+    <!--  Profile screen bg color  -->
+    <color name="profileBgColor">#E3E3E3</color>
+
+    <!-- Profile email bg color  -->
+    <color name="profileEmailBgColor">#D0E1FD</color>
+
+    <!-- dialog btn bg colors   -->
+    <color name="deleteAlertDialogBgColor">#F34746</color>
+    <color name="cancelAlertDialogBgColor">#F0F1F1</color>
+
+
+    <!-- text filed border color -->
+    <color name="texFieldBorderColor">#DBDBDB</color>
+    <color name="texFieldPrefixIconColor">#A4A4A4</color>
+    <color name="texFieldHintColor">#A4A4A4</color>
+
+
+
+
+
+</resources>
