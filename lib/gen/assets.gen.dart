@@ -46,6 +46,9 @@ class $AssetsIconSvgGen {
   /// File path: assets/icon/svg/Profile.svg
   String get profile => 'assets/icon/svg/Profile.svg';
 
+  /// File path: assets/icon/svg/back.svg
+  String get back => 'assets/icon/svg/back.svg';
+
   /// File path: assets/icon/svg/email.svg
   String get email => 'assets/icon/svg/email.svg';
 
@@ -61,6 +64,7 @@ class $AssetsIconSvgGen {
     image,
     logoutRounded,
     profile,
+    back,
     email,
     login,
     password,

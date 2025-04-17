@@ -1,7 +1,8 @@
 import 'package:go_router/go_router.dart';
-import 'package:smart_ambulance_system/features/auth/view/auth_forget_password_view.dart';
+import 'package:smart_ambulance_system/features/home/home_exports.dart';
 import 'package:smart_ambulance_system/features/splash/splash_exports.dart';
 import 'package:smart_ambulance_system/features/auth/auth_exports.dart';
+import 'package:smart_ambulance_system/features/settings/settings_exports.dart';
 
 final GoRouter router = GoRouter(
   initialLocation: '/authLogin',
@@ -32,6 +33,20 @@ final GoRouter router = GoRouter(
       path: '/authForgetPassword',
       name: 'authForgetPassword',
       builder: (context, state) => AuthForgetPasswordView(),
+    ),
+
+    // home screen
+    GoRoute(
+      path: '/home',
+      name: 'home',
+      builder: (context, state) => HomeView(),
+    ),
+
+    // settings screen
+    GoRoute(
+      path: '/settings',
+      name: 'settings',
+      builder: (context, state) => SettingsView(),
     ),
   ],
 );

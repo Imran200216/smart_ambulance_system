@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:uuid/uuid.dart';
 import 'package:smart_ambulance_system/gen/colors.gen.dart';
 
 class CustomTextField extends StatefulWidget {
@@ -14,11 +15,12 @@ class CustomTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final FormFieldValidator<String>? validator;
   final ValueChanged<String>? onChanged;
-  final EdgeInsetsGeometry? contentPadding; // Added parameter
-  final double topRightRadius; // Added for custom radius
-  final double bottomLeftRadius; // Added for custom radius
+  final EdgeInsetsGeometry? contentPadding;
+  final double topRightRadius;
+  final double bottomLeftRadius;
   final double topLeftRadius;
   final double bottomRightRadius;
+  final bool isUidGenerate;
 
   const CustomTextField({
     super.key,
@@ -32,11 +34,12 @@ class CustomTextField extends StatefulWidget {
     this.validator,
     this.onChanged,
     this.readOnly = false,
-    this.contentPadding, // Default to null to allow customization
-    this.topRightRadius = 6.0, // Default top-right radius
+    this.contentPadding,
+    this.topRightRadius = 6.0,
     this.bottomLeftRadius = 6.0,
     this.topLeftRadius = 6.0,
-    this.bottomRightRadius = 6.0, // Default bottom-left radius
+    this.bottomRightRadius = 6.0,
+    this.isUidGenerate = false,
   });
 
   @override
@@ -44,7 +47,26 @@ class CustomTextField extends StatefulWidget {
 }
 
 class _CustomTextFieldState extends State<CustomTextField> {
-  bool _isObscure = true; // State for toggling visibility
+  bool _isObscure = true;
+
+  final Uuid _uuid = const Uuid();
+
+  void _handleGenerateUid() {
+    // Generate a full UUID
+    final fullUuid = _uuid.v4().replaceAll('-', '');
+
+    // Filter to keep only alphanumeric characters and take first 6
+    final uid =
+        fullUuid
+            .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+            .substring(0, 6)
+            .toUpperCase();
+
+    widget.textEditingController?.text = uid;
+    if (widget.onChanged != null) {
+      widget.onChanged!(uid);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +122,6 @@ class _CustomTextFieldState extends State<CustomTextField> {
             ),
           ),
         ),
-
         suffixIcon:
             widget.isPassword
                 ? IconButton(
@@ -113,6 +134,12 @@ class _CustomTextFieldState extends State<CustomTextField> {
                       _isObscure = !_isObscure;
                     });
                   },
+                )
+                : widget.isUidGenerate
+                ? IconButton(
+                  icon: Icon(Icons.refresh, color: ColorName.primary),
+                  tooltip: 'Generate UID',
+                  onPressed: _handleGenerateUid,
                 )
                 : null,
         contentPadding:
