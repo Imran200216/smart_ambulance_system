@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
+import 'package:provider/provider.dart';
 import 'package:smart_ambulance_system/commons/common_widgets_exports.dart';
 import 'package:smart_ambulance_system/core/core_exports.dart';
 import 'package:smart_ambulance_system/gen/assets.gen.dart';
@@ -37,7 +38,9 @@ class _AuthLoginViewState extends State<AuthLoginView> {
   @override
   Widget build(BuildContext context) {
     // email password auth provider
-    final emailPasswordAuthProvider = locator.get<EmailPasswordProvider>();
+    final emailPasswordAuthProvider = Provider.of<EmailPasswordProvider>(
+      context,
+    );
 
     return SafeArea(
       child: Scaffold(
@@ -77,7 +80,7 @@ class _AuthLoginViewState extends State<AuthLoginView> {
                       validator:
                           (value) => AppValidator.validateEmpId(context, value),
                       textEditingController: empIdController,
-                      keyboardType: TextInputType.number,
+                      keyboardType: TextInputType.text,
                       hasBorder: true,
                       hintText: "Employee ID",
                       prefixIcon: Assets.icon.svg.profile,
@@ -156,13 +159,21 @@ class _AuthLoginViewState extends State<AuthLoginView> {
 
                           if (isSignedIn) {
                             // Hive auth box
-                            final authBox = Hive.box<bool>('authBox');
+                            final authBox = Hive.box<bool>('userAuthBox');
 
                             // Set auth state
-                            await authBox.put('isLoggedIn', true);
+                            await authBox.put('userAuthStatus', true);
                             // home
                             GoRouter.of(context).pushNamed("home");
                           }
+                        } else {
+                          // Show snackbar if form is invalid
+                          SnackBarHelper.showSnackBar(
+                            context: context,
+                            leadingIcon: Icons.warning,
+                            message: 'Please fill in all the required fields',
+                            backgroundColor: SnackBarHelper.errorColor,
+                          );
                         }
                       },
                       btnTitle: "Sign In",

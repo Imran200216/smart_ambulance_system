@@ -63,7 +63,7 @@ class CustomIconFilledBtn extends StatelessWidget {
                   ),
                 )
                 : Text(
-                  btnTitle,
+                  isLoading ? "Loading..." : btnTitle,
                   style: TextStyle(
                     color: ColorName.white,
                     fontWeight: FontWeight.w600,

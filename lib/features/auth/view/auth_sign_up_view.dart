@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
+import 'package:provider/provider.dart';
 import 'package:smart_ambulance_system/gen/assets.gen.dart';
 import 'package:smart_ambulance_system/gen/colors.gen.dart';
 import 'package:smart_ambulance_system/commons/common_widgets_exports.dart';
@@ -41,7 +42,9 @@ class _AuthSignUpViewState extends State<AuthSignUpView> {
   @override
   Widget build(BuildContext context) {
     // email password auth provider
-    final emailPasswordAuthProvider = locator.get<EmailPasswordProvider>();
+    final emailPasswordAuthProvider = Provider.of<EmailPasswordProvider>(
+      context,
+    );
 
     return SafeArea(
       child: Scaffold(
@@ -54,8 +57,8 @@ class _AuthSignUpViewState extends State<AuthSignUpView> {
                 scrollDirection: Axis.vertical,
                 child: Column(
                   spacing: 10.h,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // svg img
                     Center(
@@ -173,14 +176,22 @@ class _AuthSignUpViewState extends State<AuthSignUpView> {
 
                           if (isRegistered) {
                             // Hive auth box
-                            final authBox = Hive.box<bool>('authBox');
+                            final authBox = Hive.box<bool>('userAuthBox');
 
                             // Set auth state
-                            await authBox.put('isLoggedIn', true);
+                            await authBox.put('userAuthStatus', true);
 
                             // Navigate to home
                             GoRouter.of(context).pushNamed("home");
                           }
+                        } else {
+                          // Show snackbar if form is invalid
+                          SnackBarHelper.showSnackBar(
+                            context: context,
+                            leadingIcon: Icons.warning,
+                            message: 'Please fill in all the required fields',
+                            backgroundColor: SnackBarHelper.errorColor,
+                          );
                         }
                       },
                       btnTitle: "Create Account",

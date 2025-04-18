@@ -120,6 +120,14 @@ class _AuthForgetPasswordViewState extends State<AuthForgetPasswordView> {
                         // login view
                         GoRouter.of(context).pushNamed("authLogin");
                       }
+                    } else {
+                      // Show snackbar if form is invalid
+                      SnackBarHelper.showSnackBar(
+                        context: context,
+                        leadingIcon: Icons.warning,
+                        message: 'Please fill in the required fields',
+                        backgroundColor: SnackBarHelper.errorColor,
+                      );
                     }
                   },
                   btnTitle: "Send link",
