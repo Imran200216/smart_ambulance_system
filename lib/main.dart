@@ -36,6 +36,16 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => locator.get<EmployeeDetailsProvider>(),
         ),
+
+        // toggle search provider
+        ChangeNotifierProvider(
+          create: (context) => locator.get<SearchToggleProvider>(),
+        ),
+
+        // map search provider
+        ChangeNotifierProvider(
+          create: (context) => locator.get<MapSearchProvider>(),
+        ),
       ],
       child: ScreenUtilInit(
         designSize: const Size(360, 690),

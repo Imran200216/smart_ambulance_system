@@ -34,4 +34,10 @@ Future<void> setUpLocator() async {
 
   // employee details provider
   locator.registerLazySingleton(() => EmployeeDetailsProvider());
+
+  // search toggle provider
+  locator.registerLazySingleton(() => SearchToggleProvider());
+
+  // map search provider
+  locator.registerLazySingleton(() => MapSearchProvider());
 }
