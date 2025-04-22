@@ -4,6 +4,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:latlong2/latlong.dart' as latlong;
 
 class MapSearchProvider extends ChangeNotifier {
   final MapController mapController = MapController();
@@ -12,10 +14,118 @@ class MapSearchProvider extends ChangeNotifier {
   bool _pendingLocationMove = false;
   double _pendingZoomLevel = 14.0;
 
-  // For routing
+  // Controllers
+  final fromController = TextEditingController();
+  final toController = TextEditingController();
+
+  // LatLngs
+  LatLng? _fromLatLng;
+  LatLng? _toLatLng;
+
+  // Distance
+  double? _calculatedDistance;
+
+  double? get calculatedDistance => _calculatedDistance;
+
+  // Routes
   List<LatLng> routePoints = [];
 
-  /// Puducherry bounds check
+  /// Convert address to LatLng and update either From or To
+  Future<void> convertAddressToLatLng(
+    String address, {
+    bool isFrom = true,
+  }) async {
+    try {
+      List<Location> locations = await locationFromAddress(address);
+      if (locations.isNotEmpty) {
+        final latLng = LatLng(locations[0].latitude, locations[0].longitude);
+        if (isFrom) {
+          _fromLatLng = latLng;
+          fromController.text = address;
+        } else {
+          _toLatLng = latLng;
+          toController.text = address;
+        }
+        calculateDistance();
+      }
+    } catch (e) {
+      print('Geocoding error: $e');
+    }
+  }
+
+  /// Set From LatLng and calculate distance
+  void updateFromLocation(LatLng latLng) {
+    _fromLatLng = latLng;
+    calculateDistance();
+  }
+
+  /// Set To LatLng and calculate distance
+  void updateToLocation(LatLng latLng) {
+    _toLatLng = latLng;
+    calculateDistance();
+  }
+
+  /// Distance calculator
+  void calculateDistance() {
+    if (_fromLatLng != null && _toLatLng != null) {
+      final distance = const latlong.Distance();
+      _calculatedDistance = distance.as(
+        LengthUnit.Kilometer,
+        _fromLatLng!,
+        _toLatLng!,
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Fetch lat/lng from OpenStreetMap Nominatim API
+  Future<Map<String, double>?> _fetchLocation(String query) async {
+    final url =
+        "https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1";
+    final response = await http.get(Uri.parse(url));
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data.isNotEmpty) {
+      return {
+        'lat': double.parse(data[0]['lat']),
+        'lon': double.parse(data[0]['lon']),
+      };
+    }
+    return null;
+  }
+
+  /// Search using text input
+  Future<void> searchRouteFromInputs() async {
+    final fromQuery = fromController.text.trim();
+    final toQuery = toController.text.trim();
+
+    if (fromQuery.isEmpty || toQuery.isEmpty) return;
+
+    try {
+      final fromData = await _fetchLocation(fromQuery);
+      final toData = await _fetchLocation(toQuery);
+
+      if (fromData != null && toData != null) {
+        final fromLatLng = LatLng(fromData['lat']!, fromData['lon']!);
+        final toLatLng = LatLng(toData['lat']!, toData['lon']!);
+
+        // Save internally and calculate
+        updateFromLocation(fromLatLng);
+        updateToLocation(toLatLng);
+
+        // Get route
+        await findRoute(fromLatLng, toLatLng);
+      } else {
+        routePoints = [];
+        _calculatedDistance = null;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error in searchRouteFromInputs: $e');
+    }
+  }
+
+  /// Check Puducherry bounds
   bool _isWithinPuducherryBounds(double lat, double lon) {
     return lat >= 11.8 && lat <= 12.1 && lon >= 79.7 && lon <= 79.9;
   }
@@ -49,7 +159,7 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Search by place name
+  /// Search by name
   Future<void> searchPlace(String query) async {
     if (query.isEmpty) return;
 
@@ -89,7 +199,6 @@ class MapSearchProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Apply pending camera move
   void _applyPendingLocationMoveIfReady() {
     if (isMapReady && _pendingLocationMove && searchedLocation != null) {
       try {
@@ -101,7 +210,7 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Zoom manually
+  /// Zoom control
   void zoomTo(double zoomLevel) {
     if (isMapReady && searchedLocation != null) {
       try {
@@ -115,7 +224,7 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Get shortest route using OSRM
+  /// Get shortest route
   Future<void> findRoute(LatLng from, LatLng to) async {
     final url =
         'https://router.project-osrm.org/route/v1/driving/${from.longitude},${from.latitude};${to.longitude},${to.latitude}?overview=full&geometries=geojson';
@@ -152,6 +261,7 @@ class MapSearchProvider extends ChangeNotifier {
   /// Clear route
   void clearRoute() {
     routePoints = [];
+    _calculatedDistance = null;
     notifyListeners();
   }
 }

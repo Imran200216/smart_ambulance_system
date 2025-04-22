@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_ambulance_system/features/auth/auth_exports.dart';
@@ -130,6 +131,7 @@ class _HomeViewState extends State<HomeView> {
             margin: EdgeInsets.only(bottom: 20.h),
             child: Column(
               children: [
+                // user profile letter, username, user email
                 CustomDrawerHeader(
                   fullName: currentUserName,
                   email: currentUserEmail,
@@ -167,14 +169,45 @@ class _HomeViewState extends State<HomeView> {
                   icon: Icons.logout,
                   title: 'Logout',
                   onTap: () async {
-                    final isSignedOut = await emailPasswordAuthProvider
-                        .signOutUser(context);
+                    try {
+                      // Sign out via provider
+                      final isSignedOut = await emailPasswordAuthProvider
+                          .signOutUser(context);
 
-                    if (isSignedOut) {
-                      GoRouter.of(context).pushReplacementNamed("onBoarding");
+                      // Access Hive boxes
+                      final authBox = Hive.box<bool>('userAuthBox');
+                      final onBoardingBox = Hive.box<bool>('userOnBoardingBox');
+
+                      // Update Hive values
+                      await onBoardingBox.put('userOnBoardingStatus', false);
+                      await authBox.put('userAuthStatus', false);
+
+                      if (isSignedOut) {
+                        // Show a success toast
+                        SnackBarHelper.showSnackBar(
+                          context: context,
+                          leadingIcon: Icons.logout,
+                          backgroundColor: SnackBarHelper.successColor,
+                          message: "Logged out successfully",
+                        );
+
+                        // on boarding view
+                        GoRouter.of(context).pushReplacementNamed("onBoarding");
+                      } else {
+                        // failure snack bar
+                        SnackBarHelper.showSnackBar(
+                          context: context,
+                          leadingIcon: Icons.error,
+                          backgroundColor: SnackBarHelper.errorColor,
+                          message: "Logout failed",
+                        );
+                      }
+                    } catch (e) {
+                      print("Logout error: $e");
                     }
                   },
                 ),
+
                 const Spacer(),
 
                 // app version
@@ -225,6 +258,7 @@ class _HomeViewState extends State<HomeView> {
                   urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 ),
 
+                // search location
                 if (mapSearchProvider.isMapReady &&
                     mapSearchProvider.searchedLocation != null)
                   MarkerLayer(
@@ -236,12 +270,13 @@ class _HomeViewState extends State<HomeView> {
                         child: Icon(
                           Icons.location_on,
                           size: 40,
-                          color: Colors.green,
+                          color: ColorName.black,
                         ),
                       ),
                     ],
                   ),
 
+                // route
                 if (mapSearchProvider.routePoints.isNotEmpty)
                   PolylineLayer(
                     polylines: [
@@ -256,29 +291,76 @@ class _HomeViewState extends State<HomeView> {
             ),
 
             // ⬇️ Your Conditional From/To Input Fields
-            if (showRouteProvider.showRouteInputFields)
-              Positioned(
-                top: 20,
-                left: 20,
-                right: 20,
-                child: Column(
+            Consumer2<ShowRouteToggleProvider, MapSearchProvider>(
+              builder: (context, showRouteProvider, mapSearchProvider, _) {
+                return Stack(
                   children: [
-                    // from location
-                    CustomRouteMapTextField(
-                      hintText: 'From location',
-                      onChanged: (value) {},
-                    ),
-
-                    SizedBox(height: 10.h),
-
-                    // to location
-                    CustomRouteMapTextField(
-                      hintText: 'To location',
-                      onChanged: (value) {},
-                    ),
+                    if (showRouteProvider.showRouteInputFields)
+                      Positioned(
+                        top: 20,
+                        left: 20,
+                        right: 20,
+                        child: Container(
+                          margin: EdgeInsets.symmetric(horizontal: 20.w),
+                          child: Column(
+                            spacing: 8.h,
+                            children: [
+                              CustomRouteMapTextField(
+                                controller: mapSearchProvider.fromController,
+                                hintText: 'From location',
+                                onChanged: (value) {
+                                  mapSearchProvider.convertAddressToLatLng(
+                                    value,
+                                    isFrom: true,
+                                  );
+                                },
+                              ),
+                              CustomRouteMapTextField(
+                                controller: mapSearchProvider.toController,
+                                hintText: 'To location',
+                                onChanged: (value) {
+                                  mapSearchProvider.convertAddressToLatLng(
+                                    value,
+                                    isFrom: false,
+                                  );
+                                },
+                              ),
+                              if (mapSearchProvider.calculatedDistance != null)
+                                Container(
+                                  height: 80.h,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12.r),
+                                    color: ColorName.white,
+                                  ),
+                                  child: Center(
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.directions,
+                                          color: ColorName.primary,
+                                        ),
+                                        SizedBox(width: 10.w),
+                                        Text(
+                                          '${mapSearchProvider.calculatedDistance!.toStringAsFixed(2)} km',
+                                          style: TextStyle(
+                                            fontSize: 16.sp,
+                                            fontWeight: FontWeight.bold,
+                                            color: ColorName.black,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
-                ),
-              ),
+                );
+              },
+            ),
           ],
         ),
       ),

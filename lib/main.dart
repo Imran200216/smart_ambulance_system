@@ -16,7 +16,6 @@ void main() async {
   final appInfoProvider = locator<AppInfoProvider>();
   await appInfoProvider.init();
 
-
   runApp(const MyApp());
 }
 
