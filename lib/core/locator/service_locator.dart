@@ -23,6 +23,9 @@ Future<void> setUpLocator() async {
   // open a Hive box for storing onboarding state
   await Hive.openBox<bool>('userOnBoardingBox');
 
+  // app info provider
+  locator.registerLazySingleton(() => AppInfoProvider());
+
   // email auth service
   locator.registerLazySingleton(() => EmailPasswordAuthService());
 

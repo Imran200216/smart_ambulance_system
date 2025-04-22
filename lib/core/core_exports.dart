@@ -19,5 +19,8 @@ export 'package:smart_ambulance_system/core/locator/service_locator.dart';
 //app constants
 export 'package:smart_ambulance_system/core/constants/app_constants.dart';
 
+// provider
+export 'package:smart_ambulance_system/core/providers/app_info_provider.dart';
+
 // service exports
 export 'package:smart_ambulance_system/core/service/service_exports.dart';

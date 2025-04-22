@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_ambulance_system/features/auth/auth_exports.dart';
 import 'package:smart_ambulance_system/features/home/home_exports.dart';
+import 'package:smart_ambulance_system/core/core_exports.dart';
 import 'package:smart_ambulance_system/gen/colors.gen.dart';
 
 class HomeView extends StatefulWidget {
@@ -55,6 +56,7 @@ class _HomeViewState extends State<HomeView> {
     final termsPrivacyProvider = Provider.of<TermsPrivacyLauncherProvider>(
       context,
     );
+    final appVersionProvider = Provider.of<AppInfoProvider>(context);
 
     //////////////////////////
 
@@ -62,6 +64,9 @@ class _HomeViewState extends State<HomeView> {
     final User? currentUser = FirebaseAuth.instance.currentUser;
     final currentUserName = currentUser?.displayName ?? "No Name";
     final currentUserEmail = currentUser?.email ?? "No Email";
+
+    // app version
+    final appVersion = appVersionProvider.version;
 
     return SafeArea(
       child: Scaffold(
@@ -171,8 +176,10 @@ class _HomeViewState extends State<HomeView> {
                   },
                 ),
                 const Spacer(),
+
+                // app version
                 Text(
-                  "Version 1.0.0",
+                  appVersion,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: ColorName.primary,

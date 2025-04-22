@@ -12,6 +12,11 @@ void main() async {
   // service locator
   await setUpLocator();
 
+  // Initialize AppInfoProvider
+  final appInfoProvider = locator<AppInfoProvider>();
+  await appInfoProvider.init();
+
+
   runApp(const MyApp());
 }
 
@@ -22,6 +27,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // app info provider
+        ChangeNotifierProvider(
+          create: (context) => locator.get<AppInfoProvider>(),
+        ),
+
         // on boarding provider
         ChangeNotifierProvider(
           create: (context) => locator.get<OnBoardingProvider>(),

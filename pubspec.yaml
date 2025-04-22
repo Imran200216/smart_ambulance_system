@@ -63,6 +63,8 @@ dependencies:
   smooth_page_indicator: ^1.2.1
   # url launcher
   url_launcher: ^6.3.1
+  # package info plus
+  package_info_plus: ^8.3.0
   # open street map
   latlong2: ^0.9.1
   flutter_map: ^8.1.1
