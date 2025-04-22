@@ -128,7 +128,7 @@ class _HomeViewState extends State<HomeView> {
                 CustomDrawerHeader(
                   fullName: currentUserName,
                   email: currentUserEmail,
-                  profileImageUrl: 'https://i.pravatar.cc/150?img=3',
+                  profileFirstUserName: currentUserEmail[0],
                 ),
 
                 // terms and privacy
