@@ -3,7 +3,6 @@ import 'package:smart_ambulance_system/features/home/home_exports.dart';
 import 'package:smart_ambulance_system/features/on_boarding/on_boarding_exports.dart';
 import 'package:smart_ambulance_system/features/splash/splash_exports.dart';
 import 'package:smart_ambulance_system/features/auth/auth_exports.dart';
-import 'package:smart_ambulance_system/features/settings/settings_exports.dart';
 
 final GoRouter router = GoRouter(
   initialLocation: '/splash',
@@ -48,13 +47,6 @@ final GoRouter router = GoRouter(
       path: '/home',
       name: 'home',
       builder: (context, state) => HomeView(),
-    ),
-
-    // settings view
-    GoRoute(
-      path: '/settings',
-      name: 'settings',
-      builder: (context, state) => SettingsView(),
     ),
   ],
 );

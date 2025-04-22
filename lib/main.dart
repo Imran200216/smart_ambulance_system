@@ -42,9 +42,24 @@ class MyApp extends StatelessWidget {
           create: (context) => locator.get<SearchToggleProvider>(),
         ),
 
+        // show route toggle provider
+        ChangeNotifierProvider(
+          create: (context) => locator.get<ShowRouteToggleProvider>(),
+        ),
+
         // map search provider
         ChangeNotifierProvider(
           create: (context) => locator.get<MapSearchProvider>(),
+        ),
+
+        // email launch provider
+        ChangeNotifierProvider(
+          create: (context) => locator.get<EmailLauncherProvider>(),
+        ),
+
+        // terms privacy provider
+        ChangeNotifierProvider(
+          create: (context) => locator.get<TermsPrivacyLauncherProvider>(),
         ),
       ],
       child: ScreenUtilInit(

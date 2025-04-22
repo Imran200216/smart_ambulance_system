@@ -8,74 +8,48 @@ import 'package:geolocator/geolocator.dart';
 class MapSearchProvider extends ChangeNotifier {
   final MapController mapController = MapController();
   LatLng? searchedLocation;
-  bool isMapReady = false; // Add a flag to check if map is ready
+  bool isMapReady = false;
+  bool _pendingLocationMove = false;
+  double _pendingZoomLevel = 14.0;
 
-  // Define Puducherry bounds for location checking
+  // For routing
+  List<LatLng> routePoints = [];
+
+  /// Puducherry bounds check
   bool _isWithinPuducherryBounds(double lat, double lon) {
     return lat >= 11.8 && lat <= 12.1 && lon >= 79.7 && lon <= 79.9;
   }
 
-  // Fetch the user's current location
+  /// Get current location
   Future<void> getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
 
-    // Check if location services are enabled
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // Location services are not enabled, handle accordingly
-      return;
-    }
-
-    // Check for location permission
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        // Handle permission denial
-        return;
-      }
+      if (permission == LocationPermission.denied) return;
     }
+    if (permission == LocationPermission.deniedForever) return;
 
-    if (permission == LocationPermission.deniedForever) {
-      // Handle location permission denial
-      return;
-    }
-
-    // Get the current position of the user
     Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
 
-    // Check if the current location is within Puducherry bounds
     if (_isWithinPuducherryBounds(position.latitude, position.longitude)) {
       searchedLocation = LatLng(position.latitude, position.longitude);
-
-      // Only move the map if the map is ready
-      if (isMapReady) {
-        mapController.move(
-          searchedLocation!,
-          14, // Zoom into current location within Puducherry
-        );
-      } else {
-        // If map is not ready, delay the move action
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          mapController.move(
-            searchedLocation!,
-            14, // Zoom into current location within Puducherry
-          );
-        });
-      }
-
+      _pendingLocationMove = true;
+      _pendingZoomLevel = 14.0;
+      _applyPendingLocationMoveIfReady();
       notifyListeners();
     } else {
       searchedLocation = null;
-      notifyListeners();
       print('Current location is not within Puducherry bounds');
+      notifyListeners();
     }
   }
 
-  // Search for a place by name and update the map
+  /// Search by place name
   Future<void> searchPlace(String query) async {
     if (query.isEmpty) return;
 
@@ -90,42 +64,94 @@ class MapSearchProvider extends ChangeNotifier {
       final lat = double.parse(data[0]['lat']);
       final lon = double.parse(data[0]['lon']);
 
-      // Check if the searched location is within Puducherry bounds
       if (_isWithinPuducherryBounds(lat, lon)) {
         searchedLocation = LatLng(lat, lon);
-
-        // Only move the map if the map is ready
-        if (isMapReady) {
-          mapController.move(
-            searchedLocation!,
-            14, // Zoom into location within Puducherry
-          );
-        } else {
-          // If map is not ready, delay the move action
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            mapController.move(
-              searchedLocation!,
-              14, // Zoom into location within Puducherry
-            );
-          });
-        }
-
+        _pendingLocationMove = true;
+        _pendingZoomLevel = 16.0;
+        _applyPendingLocationMoveIfReady();
         notifyListeners();
       } else {
         searchedLocation = null;
-        notifyListeners();
         print('Location is not in Puducherry');
+        notifyListeners();
       }
     } else {
-      // Handle no results found
       searchedLocation = null;
+      print('No results found');
       notifyListeners();
     }
   }
 
-  // Method to notify when the map is ready
+  /// Map readiness handler
   void onMapReady() {
     isMapReady = true;
+    _applyPendingLocationMoveIfReady();
+    notifyListeners();
+  }
+
+  /// Apply pending camera move
+  void _applyPendingLocationMoveIfReady() {
+    if (isMapReady && _pendingLocationMove && searchedLocation != null) {
+      try {
+        mapController.move(searchedLocation!, _pendingZoomLevel);
+        _pendingLocationMove = false;
+      } catch (e) {
+        print('Error moving map: $e');
+      }
+    }
+  }
+
+  /// Zoom manually
+  void zoomTo(double zoomLevel) {
+    if (isMapReady && searchedLocation != null) {
+      try {
+        mapController.move(searchedLocation!, zoomLevel);
+      } catch (e) {
+        print('Error zooming map: $e');
+      }
+    } else {
+      _pendingZoomLevel = zoomLevel;
+      _pendingLocationMove = true;
+    }
+  }
+
+  /// Get shortest route using OSRM
+  Future<void> findRoute(LatLng from, LatLng to) async {
+    final url =
+        'https://router.project-osrm.org/route/v1/driving/${from.longitude},${from.latitude};${to.longitude},${to.latitude}?overview=full&geometries=geojson';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 &&
+          data['routes'] != null &&
+          data['routes'].isNotEmpty) {
+        final route = data['routes'][0]['geometry']['coordinates'] as List;
+
+        routePoints =
+            route
+                .map(
+                  (point) => LatLng(point[1].toDouble(), point[0].toDouble()),
+                )
+                .toList();
+
+        notifyListeners();
+      } else {
+        print('No route found');
+        routePoints = [];
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching route: $e');
+      routePoints = [];
+      notifyListeners();
+    }
+  }
+
+  /// Clear route
+  void clearRoute() {
+    routePoints = [];
     notifyListeners();
   }
 }

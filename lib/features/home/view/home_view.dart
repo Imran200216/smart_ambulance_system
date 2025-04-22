@@ -17,14 +17,8 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  // OpenStreetMap controller
-  final MapController mapController = MapController();
-
   // Search controller
   final TextEditingController searchController = TextEditingController();
-
-  // This will store if the map is ready to be moved
-  bool isMapReady = false;
 
   @override
   void initState() {
@@ -36,12 +30,7 @@ class _HomeViewState extends State<HomeView> {
     );
 
     // Fetch current location asynchronously
-    mapSearchProvider.getCurrentLocation().then((_) {
-      setState(() {
-        // Set the map as ready once location is fetched
-        isMapReady = true;
-      });
-    });
+    mapSearchProvider.getCurrentLocation();
   }
 
   @override
@@ -61,6 +50,13 @@ class _HomeViewState extends State<HomeView> {
     );
     final searchToggleProvider = Provider.of<SearchToggleProvider>(context);
     final mapSearchProvider = Provider.of<MapSearchProvider>(context);
+    final showRouteProvider = Provider.of<ShowRouteToggleProvider>(context);
+    final emailLaunchProvider = Provider.of<EmailLauncherProvider>(context);
+    final termsPrivacyProvider = Provider.of<TermsPrivacyLauncherProvider>(
+      context,
+    );
+
+    //////////////////////////
 
     // Current user details
     final User? currentUser = FirebaseAuth.instance.currentUser;
@@ -69,6 +65,26 @@ class _HomeViewState extends State<HomeView> {
 
     return SafeArea(
       child: Scaffold(
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            if (showRouteProvider.showRouteInputFields) {
+              // Currently visible → hide + clear route
+              showRouteProvider.toggleRouteFieldsVisibility();
+              mapSearchProvider.clearRoute();
+            } else {
+              // Currently hidden → show input fields
+              showRouteProvider.toggleRouteFieldsVisibility();
+            }
+          },
+
+          backgroundColor: ColorName.primary,
+          child: Icon(
+            showRouteProvider.showRouteInputFields
+                ? Icons.clear
+                : Icons.location_city,
+            color: ColorName.black,
+          ),
+        ),
         appBar: AppBar(
           backgroundColor: Colors.white,
           iconTheme: const IconThemeData(color: Colors.black),
@@ -88,16 +104,11 @@ class _HomeViewState extends State<HomeView> {
           ],
           title:
               searchToggleProvider.isSearching
-                  ? TextField(
+                  ? CustomSearchLocationTextField(
+                    controller: searchController,
                     onSubmitted: (query) async {
                       await mapSearchProvider.searchPlace(query);
                     },
-                    controller: searchController,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Search...',
-                      border: InputBorder.none,
-                    ),
                   )
                   : Text(
                     'Home',
@@ -119,27 +130,34 @@ class _HomeViewState extends State<HomeView> {
                   email: currentUserEmail,
                   profileImageUrl: 'https://i.pravatar.cc/150?img=3',
                 ),
-                CustomDrawerTile(
-                  icon: Icons.settings,
-                  title: 'Settings',
-                  onTap: () {
-                    GoRouter.of(context).pushNamed("settings");
-                  },
-                ),
+
+                // terms and privacy
                 CustomDrawerTile(
                   icon: Icons.info,
                   title: 'Terms and privacy',
                   onTap: () {
-                    GoRouter.of(context).pushNamed("settings");
+                    termsPrivacyProvider.launchTermsOrPrivacy(
+                      context: context,
+                      url: "https://www.youtube.com/watch?v=OYCde4qKYCg&t=212s",
+                    );
                   },
                 ),
+
+                // help center
                 CustomDrawerTile(
                   icon: Icons.help_center,
                   title: 'Help and Support',
                   onTap: () {
-                    GoRouter.of(context).pushNamed("settings");
+                    emailLaunchProvider.sendEmail(
+                      context: context,
+                      mailId: "imranbabuji162002@gmail.com",
+                      subject: "hi how are you",
+                      message: "how are you, i think you should be fine",
+                    );
                   },
                 ),
+
+                // log out
                 CustomDrawerTile(
                   icon: Icons.logout,
                   title: 'Logout',
@@ -169,12 +187,14 @@ class _HomeViewState extends State<HomeView> {
           children: [
             // Flutter Map
             FlutterMap(
-              mapController: mapController,
+              mapController: mapSearchProvider.mapController,
               options: MapOptions(
+                onMapReady: () {
+                  mapSearchProvider.onMapReady();
+                },
                 initialCenter:
                     mapSearchProvider.searchedLocation ??
                     const LatLng(11.9139, 79.8145),
-                // Default to Puducherry
                 initialZoom:
                     mapSearchProvider.searchedLocation != null ? 14 : 12,
                 minZoom: 0,
@@ -182,13 +202,24 @@ class _HomeViewState extends State<HomeView> {
                 interactionOptions: const InteractionOptions(
                   flags: InteractiveFlag.all,
                 ),
+                onTap: (tapPosition, point) {
+                  if (mapSearchProvider.searchedLocation == null) {
+                    mapSearchProvider.searchedLocation = point;
+                  } else {
+                    mapSearchProvider.findRoute(
+                      mapSearchProvider.searchedLocation!,
+                      point,
+                    );
+                  }
+                },
               ),
               children: [
                 TileLayer(
                   urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 ),
-                // Current location layer
-                if (isMapReady && mapSearchProvider.searchedLocation != null)
+
+                if (mapSearchProvider.isMapReady &&
+                    mapSearchProvider.searchedLocation != null)
                   MarkerLayer(
                     markers: [
                       Marker(
@@ -198,13 +229,49 @@ class _HomeViewState extends State<HomeView> {
                         child: Icon(
                           Icons.location_on,
                           size: 40,
-                          color: ColorName.black,
+                          color: Colors.green,
                         ),
+                      ),
+                    ],
+                  ),
+
+                if (mapSearchProvider.routePoints.isNotEmpty)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: mapSearchProvider.routePoints,
+                        strokeWidth: 4.0,
+                        color: Colors.blueAccent,
                       ),
                     ],
                   ),
               ],
             ),
+
+            // ⬇️ Your Conditional From/To Input Fields
+            if (showRouteProvider.showRouteInputFields)
+              Positioned(
+                top: 20,
+                left: 20,
+                right: 20,
+                child: Column(
+                  children: [
+                    // from location
+                    CustomRouteMapTextField(
+                      hintText: 'From location',
+                      onChanged: (value) {},
+                    ),
+
+                    SizedBox(height: 10.h),
+
+                    // to location
+                    CustomRouteMapTextField(
+                      hintText: 'To location',
+                      onChanged: (value) {},
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

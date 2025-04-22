@@ -61,7 +61,9 @@ dependencies:
   cached_network_image: ^3.4.1
   # smooth page indicator
   smooth_page_indicator: ^1.2.1
-  # map
+  # url launcher
+  url_launcher: ^6.3.1
+  # open street map
   latlong2: ^0.9.1
   flutter_map: ^8.1.1
   flutter_map_location_marker: ^10.1.0

@@ -38,6 +38,15 @@ Future<void> setUpLocator() async {
   // search toggle provider
   locator.registerLazySingleton(() => SearchToggleProvider());
 
+  // show route toggle provider
+  locator.registerLazySingleton(() => ShowRouteToggleProvider());
+
   // map search provider
   locator.registerLazySingleton(() => MapSearchProvider());
+
+  // email launcher provider
+  locator.registerLazySingleton(() => EmailLauncherProvider());
+
+  // terms privacy launcher provider
+  locator.registerLazySingleton(() => TermsPrivacyLauncherProvider());
 }
