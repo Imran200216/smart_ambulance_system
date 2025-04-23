@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart' as latlong;
+import 'package:smart_ambulance_system/features/home/home_exports.dart';
 
 class MapSearchProvider extends ChangeNotifier {
   final MapController mapController = MapController();
@@ -14,23 +15,19 @@ class MapSearchProvider extends ChangeNotifier {
   bool _pendingLocationMove = false;
   double _pendingZoomLevel = 14.0;
 
-  // Controllers
   final fromController = TextEditingController();
   final toController = TextEditingController();
 
-  // LatLngs
   LatLng? _fromLatLng;
   LatLng? _toLatLng;
 
-  // Distance
   double? _calculatedDistance;
+
+  List<LatLng> routePoints = [];
+  List<Hospital> nearbyHospitals = [];
 
   double? get calculatedDistance => _calculatedDistance;
 
-  // Routes
-  List<LatLng> routePoints = [];
-
-  /// Convert address to LatLng and update either From or To
   Future<void> convertAddressToLatLng(
     String address, {
     bool isFrom = true,
@@ -53,19 +50,16 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Set From LatLng and calculate distance
   void updateFromLocation(LatLng latLng) {
     _fromLatLng = latLng;
     calculateDistance();
   }
 
-  /// Set To LatLng and calculate distance
   void updateToLocation(LatLng latLng) {
     _toLatLng = latLng;
     calculateDistance();
   }
 
-  /// Distance calculator
   void calculateDistance() {
     if (_fromLatLng != null && _toLatLng != null) {
       final distance = const latlong.Distance();
@@ -78,7 +72,6 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Fetch lat/lng from OpenStreetMap Nominatim API
   Future<Map<String, double>?> _fetchLocation(String query) async {
     final url =
         "https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1";
@@ -94,7 +87,6 @@ class MapSearchProvider extends ChangeNotifier {
     return null;
   }
 
-  /// Search using text input
   Future<void> searchRouteFromInputs() async {
     final fromQuery = fromController.text.trim();
     final toQuery = toController.text.trim();
@@ -109,11 +101,9 @@ class MapSearchProvider extends ChangeNotifier {
         final fromLatLng = LatLng(fromData['lat']!, fromData['lon']!);
         final toLatLng = LatLng(toData['lat']!, toData['lon']!);
 
-        // Save internally and calculate
         updateFromLocation(fromLatLng);
         updateToLocation(toLatLng);
 
-        // Get route
         await findRoute(fromLatLng, toLatLng);
       } else {
         routePoints = [];
@@ -125,12 +115,10 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Check Puducherry bounds
   bool _isWithinPuducherryBounds(double lat, double lon) {
     return lat >= 11.8 && lat <= 12.1 && lon >= 79.7 && lon <= 79.9;
   }
 
-  /// Get current location
   Future<void> getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -159,7 +147,6 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Search by name
   Future<void> searchPlace(String query) async {
     if (query.isEmpty) return;
 
@@ -192,7 +179,6 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Map readiness handler
   void onMapReady() {
     isMapReady = true;
     _applyPendingLocationMoveIfReady();
@@ -210,7 +196,6 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Zoom control
   void zoomTo(double zoomLevel) {
     if (isMapReady && searchedLocation != null) {
       try {
@@ -224,7 +209,6 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Get shortest route
   Future<void> findRoute(LatLng from, LatLng to) async {
     final url =
         'https://router.project-osrm.org/route/v1/driving/${from.longitude},${from.latitude};${to.longitude},${to.latitude}?overview=full&geometries=geojson';
@@ -258,7 +242,57 @@ class MapSearchProvider extends ChangeNotifier {
     }
   }
 
-  /// Clear route
+  /// Fetch nearby hospitals using current location and store in [nearbyHospitals]
+  Future<void> fetchNearbyHospitals() async {
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      double lat = position.latitude;
+      double lon = position.longitude;
+
+      final url =
+          'https://nominatim.openstreetmap.org/search?format=json&limit=50&q=hospital&bounded=1&viewbox=${lon - 0.2},${lat + 0.2},${lon + 0.2},${lat - 0.2}';
+
+      final response = await http.get(Uri.parse(url));
+      final data = jsonDecode(response.body);
+
+      nearbyHospitals.clear();
+
+      if (response.statusCode == 200 && data.isNotEmpty) {
+        for (var item in data) {
+          final double hospLat = double.parse(item['lat']);
+          final double hospLon = double.parse(item['lon']);
+          final String name = item['display_name'];
+
+          final distance = const latlong.Distance().as(
+            LengthUnit.Kilometer,
+            LatLng(lat, lon),
+            LatLng(hospLat, hospLon),
+          );
+
+          if (distance <= 20) {
+            nearbyHospitals.add(
+              Hospital(
+                name: name,
+                latitude: hospLat,
+                longitude: hospLon,
+                distanceInKm: distance,
+              ),
+            );
+          }
+        }
+        notifyListeners();
+      } else {
+        print('No hospitals found nearby');
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching nearby hospitals: $e');
+    }
+  }
+
   void clearRoute() {
     routePoints = [];
     _calculatedDistance = null;

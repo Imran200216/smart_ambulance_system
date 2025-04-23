@@ -1,6 +1,9 @@
 // home screen
 export 'package:smart_ambulance_system/features/home/view/home_view.dart';
 
+// modals
+export 'package:smart_ambulance_system/features/home/modals/hospital_modal.dart';
+
 // view modals
 export 'package:smart_ambulance_system/features/home/view_modals/employee_details_provider.dart';
 export 'package:smart_ambulance_system/features/home/view_modals/search_toggle_provider.dart';

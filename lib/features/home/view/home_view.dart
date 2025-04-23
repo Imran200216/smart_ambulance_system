@@ -33,6 +33,9 @@ class _HomeViewState extends State<HomeView> {
 
     // Fetch current location asynchronously
     mapSearchProvider.getCurrentLocation();
+
+    // Fetch near by Hospital location based on their current location
+    mapSearchProvider.fetchNearbyHospitals();
   }
 
   @override
@@ -327,27 +330,55 @@ class _HomeViewState extends State<HomeView> {
                               ),
                               if (mapSearchProvider.calculatedDistance != null)
                                 Container(
-                                  height: 80.h,
                                   width: double.infinity,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12.r),
                                     color: ColorName.white,
                                   ),
-                                  child: Center(
+                                  child: Container(
+                                    margin: EdgeInsets.symmetric(
+                                      horizontal: 12.h,
+                                      vertical: 12.w,
+                                    ),
                                     child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
                                       children: [
                                         Icon(
                                           Icons.directions,
                                           color: ColorName.primary,
+                                          size: 22.h,
                                         ),
                                         SizedBox(width: 10.w),
-                                        Text(
-                                          '${mapSearchProvider.calculatedDistance!.toStringAsFixed(2)} km',
-                                          style: TextStyle(
-                                            fontSize: 16.sp,
-                                            fontWeight: FontWeight.bold,
-                                            color: ColorName.black,
-                                          ),
+                                        Column(
+                                          spacing: 8.h,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          children: [
+                                            // From location and to location
+                                            Text(
+                                              'From: ${mapSearchProvider.fromController.text}\nTo: ${mapSearchProvider.toController.text}',
+                                              style: TextStyle(
+                                                fontSize: 14.sp,
+                                                fontWeight: FontWeight.bold,
+                                                color: ColorName.black,
+                                              ),
+                                            ),
+
+                                            // calculated distance
+                                            Text(
+                                              '${mapSearchProvider.calculatedDistance!.toStringAsFixed(2)} km',
+                                              style: TextStyle(
+                                                fontSize: 12.sp,
+                                                fontWeight: FontWeight.w600,
+                                                color: ColorName.primary,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
