@@ -112,21 +112,21 @@ class _HomeViewState extends State<HomeView> {
             ),
           ],
           title:
-              searchToggleProvider.isSearching
-                  ? CustomSearchLocationTextField(
-                    controller: searchController,
-                    onSubmitted: (query) async {
-                      await mapSearchProvider.searchPlace(query);
-                    },
-                  )
-                  : Text(
-                    'Home',
-                    style: TextStyle(
-                      color: ColorName.black,
-                      fontSize: 20.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+          searchToggleProvider.isSearching
+              ? CustomSearchLocationTextField(
+            controller: searchController,
+            onSubmitted: (query) async {
+              await mapSearchProvider.searchPlace(query);
+            },
+          )
+              : Text(
+            'Home',
+            style: TextStyle(
+              color: ColorName.black,
+              fontSize: 20.sp,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           elevation: 0,
         ),
         drawer: Drawer(
@@ -228,18 +228,18 @@ class _HomeViewState extends State<HomeView> {
         ),
         body: Stack(
           children: [
-            // Flutter Map
+                     // Flutter Map
             FlutterMap(
               mapController: mapSearchProvider.mapController,
               options: MapOptions(
                 onMapReady: () {
                   mapSearchProvider.onMapReady();
                 },
-                initialCenter:
-                    mapSearchProvider.searchedLocation ??
+                initialCenter: mapSearchProvider.searchedLocation ??
                     const LatLng(11.9139, 79.8145),
-                initialZoom:
-                    mapSearchProvider.searchedLocation != null ? 14 : 12,
+                initialZoom: mapSearchProvider.searchedLocation != null
+                    ? 14
+                    : 12,
                 minZoom: 0,
                 maxZoom: 100,
                 interactionOptions: const InteractionOptions(
@@ -249,7 +249,7 @@ class _HomeViewState extends State<HomeView> {
                   if (mapSearchProvider.searchedLocation == null) {
                     mapSearchProvider.searchedLocation = point;
                   } else {
-                    mapSearchProvider.findRoute(
+                    mapSearchProvider.findRouteFromTo(
                       mapSearchProvider.searchedLocation!,
                       point,
                     );
@@ -257,15 +257,17 @@ class _HomeViewState extends State<HomeView> {
                 },
               ),
               children: [
+                // Base map
                 TileLayer(
                   urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 ),
 
-                // search location
+                // Markers (search location + hospitals)
                 if (mapSearchProvider.isMapReady &&
                     mapSearchProvider.searchedLocation != null)
                   MarkerLayer(
                     markers: [
+                      // Search location marker
                       Marker(
                         point: mapSearchProvider.searchedLocation!,
                         width: 80,
@@ -276,10 +278,45 @@ class _HomeViewState extends State<HomeView> {
                           color: ColorName.black,
                         ),
                       ),
+
+                      // Hospital markers
+                      ...mapSearchProvider.nearbyHospitals.map(
+                            (hospital) {
+                          final LatLng hospitalLocation =
+                          LatLng(hospital.latitude, hospital.longitude);
+                          final bool isSelected = mapSearchProvider
+                              .selectedHospitalLocation !=
+                              null &&
+                              mapSearchProvider.selectedHospitalLocation ==
+                                  hospitalLocation;
+
+                          return Marker(
+                            point: hospitalLocation,
+                            width: 40,
+                            height: 40,
+                            child: GestureDetector(
+                              onTap: () {
+                                mapSearchProvider.selectHospitalAndFindRoute(
+                                    hospitalLocation);
+                              },
+                              child: Tooltip(
+                                message:
+                                '${hospital.name}\n${hospital.distanceInKm
+                                    .toStringAsFixed(2)} km away',
+                                child: Icon(
+                                  Icons.local_hospital,
+                                  color: isSelected ? Colors.green : Colors.red,
+                                  size: isSelected ? 36 : 30,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
 
-                // route
+                // Polyline route
                 if (mapSearchProvider.routePoints.isNotEmpty)
                   PolylineLayer(
                     polylines: [
@@ -292,6 +329,7 @@ class _HomeViewState extends State<HomeView> {
                   ),
               ],
             ),
+
 
             // ⬇️ Your Conditional From/To Input Fields
             Consumer2<ShowRouteToggleProvider, MapSearchProvider>(
@@ -342,9 +380,9 @@ class _HomeViewState extends State<HomeView> {
                                     ),
                                     child: Row(
                                       crossAxisAlignment:
-                                          CrossAxisAlignment.center,
+                                      CrossAxisAlignment.center,
                                       mainAxisAlignment:
-                                          MainAxisAlignment.start,
+                                      MainAxisAlignment.start,
                                       children: [
                                         Icon(
                                           Icons.directions,
@@ -355,13 +393,16 @@ class _HomeViewState extends State<HomeView> {
                                         Column(
                                           spacing: 8.h,
                                           crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                           mainAxisAlignment:
-                                              MainAxisAlignment.start,
+                                          MainAxisAlignment.start,
                                           children: [
                                             // From location and to location
                                             Text(
-                                              'From: ${mapSearchProvider.fromController.text}\nTo: ${mapSearchProvider.toController.text}',
+                                              'From: ${mapSearchProvider
+                                                  .fromController
+                                                  .text}\nTo: ${mapSearchProvider
+                                                  .toController.text}',
                                               style: TextStyle(
                                                 fontSize: 14.sp,
                                                 fontWeight: FontWeight.bold,
@@ -371,7 +412,9 @@ class _HomeViewState extends State<HomeView> {
 
                                             // calculated distance
                                             Text(
-                                              '${mapSearchProvider.calculatedDistance!.toStringAsFixed(2)} km',
+                                              '${mapSearchProvider
+                                                  .calculatedDistance!
+                                                  .toStringAsFixed(2)} km',
                                               style: TextStyle(
                                                 fontSize: 12.sp,
                                                 fontWeight: FontWeight.w600,

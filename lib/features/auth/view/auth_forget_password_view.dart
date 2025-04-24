@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:smart_ambulance_system/core/core_exports.dart';
 import 'package:smart_ambulance_system/gen/assets.gen.dart';
 import 'package:smart_ambulance_system/commons/common_widgets_exports.dart';
@@ -32,7 +33,9 @@ class _AuthForgetPasswordViewState extends State<AuthForgetPasswordView> {
   @override
   Widget build(BuildContext context) {
     // email password auth provider
-    final emailPasswordAuthProvider = locator.get<EmailPasswordProvider>();
+    final emailPasswordAuthProvider = Provider.of<EmailPasswordProvider>(
+      context,
+    );
 
     return SafeArea(
       child: Scaffold(

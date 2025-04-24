@@ -10,7 +10,15 @@ import 'package:smart_ambulance_system/features/home/home_exports.dart';
 
 class MapSearchProvider extends ChangeNotifier {
   final MapController mapController = MapController();
+
   LatLng? searchedLocation;
+  LatLng? _fromLatLng;
+  LatLng? _toLatLng;
+
+  double? _calculatedDistance;
+
+  double? get calculatedDistance => _calculatedDistance;
+
   bool isMapReady = false;
   bool _pendingLocationMove = false;
   double _pendingZoomLevel = 14.0;
@@ -18,57 +26,124 @@ class MapSearchProvider extends ChangeNotifier {
   final fromController = TextEditingController();
   final toController = TextEditingController();
 
-  LatLng? _fromLatLng;
-  LatLng? _toLatLng;
-
-  double? _calculatedDistance;
-
   List<LatLng> routePoints = [];
   List<Hospital> nearbyHospitals = [];
 
-  double? get calculatedDistance => _calculatedDistance;
+  Hospital? _selectedHospital;
+  LatLng? selectedHospitalLocation;
 
+  Hospital? get selectedHospital => _selectedHospital;
+
+  void selectHospitalAndFindRoute(LatLng hospitalLocation) {
+    selectedHospitalLocation = hospitalLocation;
+    if (searchedLocation != null) {
+      findRouteFromTo(searchedLocation!, hospitalLocation);
+    }
+    notifyListeners();
+  }
+
+  /// --------------------------
+  /// Address to LatLng
+  /// --------------------------
   Future<void> convertAddressToLatLng(
-    String address, {
-    bool isFrom = true,
-  }) async {
+      String address, {
+        bool isFrom = true,
+      }) async {
     try {
       List<Location> locations = await locationFromAddress(address);
       if (locations.isNotEmpty) {
-        final latLng = LatLng(locations[0].latitude, locations[0].longitude);
+        LatLng latLng = LatLng(locations[0].latitude, locations[0].longitude);
+
         if (isFrom) {
           _fromLatLng = latLng;
-          fromController.text = address;
         } else {
           _toLatLng = latLng;
-          toController.text = address;
         }
-        calculateDistance();
+
+        if (_fromLatLng != null && _toLatLng != null) {
+          await findRouteFromTo(_fromLatLng!, _toLatLng!);
+          calculateDistance();
+        }
+
+        notifyListeners();
       }
     } catch (e) {
-      print('Geocoding error: $e');
+      print("Error converting address to LatLng: $e");
     }
   }
 
-  void updateFromLocation(LatLng latLng) {
-    _fromLatLng = latLng;
-    calculateDistance();
+  /// --------------------------
+  /// Route Calculation
+  /// --------------------------
+  Future<void> findRouteFromTo(LatLng from, LatLng to) async {
+    final url =
+        'https://router.project-osrm.org/route/v1/driving/${from.longitude},${from.latitude};${to.longitude},${to.latitude}?overview=full&geometries=geojson';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 &&
+          data['routes'] != null &&
+          data['routes'].isNotEmpty) {
+        final route = data['routes'][0]['geometry']['coordinates'] as List;
+        routePoints = route.map((point) => LatLng(point[1], point[0])).toList();
+      } else {
+        print('No route found');
+        routePoints = [];
+      }
+    } catch (e) {
+      print('Error fetching route: $e');
+      routePoints = [];
+    }
+    notifyListeners();
   }
 
-  void updateToLocation(LatLng latLng) {
-    _toLatLng = latLng;
-    calculateDistance();
-  }
-
+  /// --------------------------
+  /// Distance Calculation
+  /// --------------------------
   void calculateDistance() {
     if (_fromLatLng != null && _toLatLng != null) {
-      final distance = const latlong.Distance();
+      final Distance distance = Distance();
       _calculatedDistance = distance.as(
         LengthUnit.Kilometer,
         _fromLatLng!,
         _toLatLng!,
       );
       notifyListeners();
+    }
+  }
+
+  /// --------------------------
+  /// Search Inputs → Route
+  /// --------------------------
+  Future<void> searchRouteFromInputs() async {
+    final fromQuery = fromController.text.trim();
+    final toQuery = toController.text.trim();
+
+    if (fromQuery.isEmpty || toQuery.isEmpty) return;
+
+    try {
+      final fromData = await _fetchLocation(fromQuery);
+      final toData = await _fetchLocation(toQuery);
+
+      if (fromData != null && toData != null) {
+        final fromLatLng = LatLng(fromData['lat']!, fromData['lon']!);
+        final toLatLng = LatLng(toData['lat']!, toData['lon']!);
+
+        _fromLatLng = fromLatLng;
+        _toLatLng = toLatLng;
+
+        await findRouteFromTo(fromLatLng, toLatLng);
+        calculateDistance();
+        notifyListeners();
+      } else {
+        routePoints = [];
+        _calculatedDistance = null;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error in searchRouteFromInputs: $e');
     }
   }
 
@@ -87,38 +162,9 @@ class MapSearchProvider extends ChangeNotifier {
     return null;
   }
 
-  Future<void> searchRouteFromInputs() async {
-    final fromQuery = fromController.text.trim();
-    final toQuery = toController.text.trim();
-
-    if (fromQuery.isEmpty || toQuery.isEmpty) return;
-
-    try {
-      final fromData = await _fetchLocation(fromQuery);
-      final toData = await _fetchLocation(toQuery);
-
-      if (fromData != null && toData != null) {
-        final fromLatLng = LatLng(fromData['lat']!, fromData['lon']!);
-        final toLatLng = LatLng(toData['lat']!, toData['lon']!);
-
-        updateFromLocation(fromLatLng);
-        updateToLocation(toLatLng);
-
-        await findRoute(fromLatLng, toLatLng);
-      } else {
-        routePoints = [];
-        _calculatedDistance = null;
-        notifyListeners();
-      }
-    } catch (e) {
-      print('Error in searchRouteFromInputs: $e');
-    }
-  }
-
-  bool _isWithinPuducherryBounds(double lat, double lon) {
-    return lat >= 11.8 && lat <= 12.1 && lon >= 79.7 && lon <= 79.9;
-  }
-
+  /// --------------------------
+  /// Current Location
+  /// --------------------------
   Future<void> getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -126,9 +172,9 @@ class MapSearchProvider extends ChangeNotifier {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) return;
     }
-    if (permission == LocationPermission.deniedForever) return;
 
     Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
@@ -139,21 +185,25 @@ class MapSearchProvider extends ChangeNotifier {
       _pendingLocationMove = true;
       _pendingZoomLevel = 14.0;
       _applyPendingLocationMoveIfReady();
-      notifyListeners();
     } else {
       searchedLocation = null;
-      print('Current location is not within Puducherry bounds');
-      notifyListeners();
+      print('Location not in Puducherry');
     }
+    notifyListeners();
   }
 
+  bool _isWithinPuducherryBounds(double lat, double lon) {
+    return lat >= 11.8 && lat <= 12.1 && lon >= 79.7 && lon <= 79.9;
+  }
+
+  /// --------------------------
+  /// Search Place
+  /// --------------------------
   Future<void> searchPlace(String query) async {
     if (query.isEmpty) return;
 
-    final encodedQuery = Uri.encodeComponent(query);
     final url =
-        "https://nominatim.openstreetmap.org/search?q=$encodedQuery&format=json&limit=1";
-
+        "https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1";
     final response = await http.get(Uri.parse(url));
     final data = jsonDecode(response.body);
 
@@ -166,19 +216,17 @@ class MapSearchProvider extends ChangeNotifier {
         _pendingLocationMove = true;
         _pendingZoomLevel = 16.0;
         _applyPendingLocationMoveIfReady();
-        notifyListeners();
       } else {
         searchedLocation = null;
-        print('Location is not in Puducherry');
-        notifyListeners();
+        print('Search result not in Puducherry');
       }
-    } else {
-      searchedLocation = null;
-      print('No results found');
       notifyListeners();
     }
   }
 
+  /// --------------------------
+  /// Map Movement
+  /// --------------------------
   void onMapReady() {
     isMapReady = true;
     _applyPendingLocationMoveIfReady();
@@ -198,63 +246,26 @@ class MapSearchProvider extends ChangeNotifier {
 
   void zoomTo(double zoomLevel) {
     if (isMapReady && searchedLocation != null) {
-      try {
-        mapController.move(searchedLocation!, zoomLevel);
-      } catch (e) {
-        print('Error zooming map: $e');
-      }
+      mapController.move(searchedLocation!, zoomLevel);
     } else {
       _pendingZoomLevel = zoomLevel;
       _pendingLocationMove = true;
     }
   }
 
-  Future<void> findRoute(LatLng from, LatLng to) async {
-    final url =
-        'https://router.project-osrm.org/route/v1/driving/${from.longitude},${from.latitude};${to.longitude},${to.latitude}?overview=full&geometries=geojson';
-
-    try {
-      final response = await http.get(Uri.parse(url));
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 &&
-          data['routes'] != null &&
-          data['routes'].isNotEmpty) {
-        final route = data['routes'][0]['geometry']['coordinates'] as List;
-
-        routePoints =
-            route
-                .map(
-                  (point) => LatLng(point[1].toDouble(), point[0].toDouble()),
-                )
-                .toList();
-
-        notifyListeners();
-      } else {
-        print('No route found');
-        routePoints = [];
-        notifyListeners();
-      }
-    } catch (e) {
-      print('Error fetching route: $e');
-      routePoints = [];
-      notifyListeners();
-    }
-  }
-
-  /// Fetch nearby hospitals using current location and store in [nearbyHospitals]
+  /// --------------------------
+  /// Hospital Logic
+  /// --------------------------
   Future<void> fetchNearbyHospitals() async {
     try {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-
-      double lat = position.latitude;
-      double lon = position.longitude;
+      final double lat = position.latitude;
+      final double lon = position.longitude;
 
       final url =
           'https://nominatim.openstreetmap.org/search?format=json&limit=50&q=hospital&bounded=1&viewbox=${lon - 0.2},${lat + 0.2},${lon + 0.2},${lat - 0.2}';
-
       final response = await http.get(Uri.parse(url));
       final data = jsonDecode(response.body);
 
@@ -262,9 +273,9 @@ class MapSearchProvider extends ChangeNotifier {
 
       if (response.statusCode == 200 && data.isNotEmpty) {
         for (var item in data) {
-          final double hospLat = double.parse(item['lat']);
-          final double hospLon = double.parse(item['lon']);
-          final String name = item['display_name'];
+          final hospLat = double.parse(item['lat']);
+          final hospLon = double.parse(item['lon']);
+          final name = item['display_name'];
 
           final distance = const latlong.Distance().as(
             LengthUnit.Kilometer,
@@ -283,14 +294,29 @@ class MapSearchProvider extends ChangeNotifier {
             );
           }
         }
-        notifyListeners();
-      } else {
-        print('No hospitals found nearby');
-        notifyListeners();
       }
+      notifyListeners();
     } catch (e) {
-      print('Error fetching nearby hospitals: $e');
+      print('Error fetching hospitals: $e');
     }
+  }
+
+  Future<void> setSelectedHospital(Hospital hospital) async {
+    _selectedHospital = hospital;
+    notifyListeners();
+
+    if (searchedLocation != null) {
+      await findRouteFromTo(
+        searchedLocation!,
+        LatLng(hospital.latitude, hospital.longitude),
+      );
+    }
+  }
+
+  void clearSelectedHospital() {
+    _selectedHospital = null;
+    routePoints = [];
+    notifyListeners();
   }
 
   void clearRoute() {
