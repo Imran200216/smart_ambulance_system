@@ -52,4 +52,7 @@ Future<void> setUpLocator() async {
 
   // terms privacy launcher provider
   locator.registerLazySingleton(() => TermsPrivacyLauncherProvider());
+
+  // add ambulance address status provider
+  locator.registerLazySingleton(() => AddAmbulanceAddressStatusProvider());
 }

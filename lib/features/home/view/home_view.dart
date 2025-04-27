@@ -61,6 +61,8 @@ class _HomeViewState extends State<HomeView> {
       context,
     );
     final appVersionProvider = Provider.of<AppInfoProvider>(context);
+    final addAmbulanceAddressStatusProvider =
+        Provider.of<AddAmbulanceAddressStatusProvider>(context);
 
     //////////////////////////
 
@@ -68,6 +70,7 @@ class _HomeViewState extends State<HomeView> {
     final User? currentUser = FirebaseAuth.instance.currentUser;
     final currentUserName = currentUser?.displayName ?? "No Name";
     final currentUserEmail = currentUser?.email ?? "No Email";
+    final currentUserUid = currentUser?.uid ?? "No UID";
 
     // app version
     final appVersion = appVersionProvider.version;
@@ -112,21 +115,21 @@ class _HomeViewState extends State<HomeView> {
             ),
           ],
           title:
-          searchToggleProvider.isSearching
-              ? CustomSearchLocationTextField(
-            controller: searchController,
-            onSubmitted: (query) async {
-              await mapSearchProvider.searchPlace(query);
-            },
-          )
-              : Text(
-            'Home',
-            style: TextStyle(
-              color: ColorName.black,
-              fontSize: 20.sp,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+              searchToggleProvider.isSearching
+                  ? CustomSearchLocationTextField(
+                    controller: searchController,
+                    onSubmitted: (query) async {
+                      await mapSearchProvider.searchPlace(query);
+                    },
+                  )
+                  : Text(
+                    'Home',
+                    style: TextStyle(
+                      color: ColorName.black,
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           elevation: 0,
         ),
         drawer: Drawer(
@@ -228,18 +231,18 @@ class _HomeViewState extends State<HomeView> {
         ),
         body: Stack(
           children: [
-                     // Flutter Map
+            // Flutter Map
             FlutterMap(
               mapController: mapSearchProvider.mapController,
               options: MapOptions(
                 onMapReady: () {
                   mapSearchProvider.onMapReady();
                 },
-                initialCenter: mapSearchProvider.searchedLocation ??
+                initialCenter:
+                    mapSearchProvider.searchedLocation ??
                     const LatLng(11.9139, 79.8145),
-                initialZoom: mapSearchProvider.searchedLocation != null
-                    ? 14
-                    : 12,
+                initialZoom:
+                    mapSearchProvider.searchedLocation != null ? 14 : 12,
                 minZoom: 0,
                 maxZoom: 100,
                 interactionOptions: const InteractionOptions(
@@ -280,39 +283,89 @@ class _HomeViewState extends State<HomeView> {
                       ),
 
                       // Hospital markers
-                      ...mapSearchProvider.nearbyHospitals.map(
-                            (hospital) {
-                          final LatLng hospitalLocation =
-                          LatLng(hospital.latitude, hospital.longitude);
-                          final bool isSelected = mapSearchProvider
-                              .selectedHospitalLocation !=
-                              null &&
-                              mapSearchProvider.selectedHospitalLocation ==
-                                  hospitalLocation;
+                      ...mapSearchProvider.nearbyHospitals.map((hospital) {
+                        final LatLng hospitalLocation = LatLng(
+                          hospital.latitude,
+                          hospital.longitude,
+                        );
+                        final bool isSelected =
+                            mapSearchProvider.selectedHospitalLocation !=
+                                null &&
+                            mapSearchProvider.selectedHospitalLocation ==
+                                hospitalLocation;
 
-                          return Marker(
-                            point: hospitalLocation,
-                            width: 40,
-                            height: 40,
-                            child: GestureDetector(
-                              onTap: () {
-                                mapSearchProvider.selectHospitalAndFindRoute(
-                                    hospitalLocation);
-                              },
-                              child: Tooltip(
-                                message:
-                                '${hospital.name}\n${hospital.distanceInKm
-                                    .toStringAsFixed(2)} km away',
-                                child: Icon(
-                                  Icons.local_hospital,
-                                  color: isSelected ? Colors.green : Colors.red,
-                                  size: isSelected ? 36 : 30,
-                                ),
+                        return Marker(
+                          point: hospitalLocation,
+                          width: 40,
+                          height: 40,
+                          child: GestureDetector(
+                            onTap: () {
+                              mapSearchProvider.selectHospitalAndFindRoute(
+                                hospitalLocation,
+                              );
+                            },
+                            onDoubleTap: () {
+                              // Double tap: ask for confirmation
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext dialogContext) {
+                                  return AlertDialog(
+                                    title: Text('Confirm Navigation'),
+                                    content: Text(
+                                      'Are you sure you want to navigate to ${hospital.name}?',
+                                    ),
+                                    actions: [
+                                      // cancel txt btn
+                                      TextButton(
+                                        onPressed: () {
+                                          GoRouter.of(
+                                            dialogContext,
+                                          ).pop(); // Cancel
+                                        },
+                                        child: Text('Cancel'),
+                                      ),
+
+                                      // confirm text
+                                      TextButton(
+                                        onPressed: () {
+                                          // want to store the ambulance status to the fire store
+                                          addAmbulanceAddressStatusProvider
+                                              .saveStatus(
+                                                employeeEmail: currentUserEmail,
+                                                employeeId: currentUserUid,
+                                                hospitalName: hospital.name,
+                                                hospitalAddress: hospital.name,
+                                                context: context,
+                                              );
+
+                                          // pop the dialog
+                                          Navigator.of(dialogContext).pop();
+
+                                          // find the hospital route
+                                          mapSearchProvider
+                                              .selectHospitalAndFindRoute(
+                                                hospitalLocation,
+                                              ); // Start navigation
+                                        },
+                                        child: Text('Confirm'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                            child: Tooltip(
+                              message:
+                                  '${hospital.name}\n${hospital.distanceInKm.toStringAsFixed(2)} km away',
+                              child: Icon(
+                                Icons.local_hospital,
+                                color: isSelected ? Colors.green : Colors.red,
+                                size: isSelected ? 36 : 30,
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      }),
                     ],
                   ),
 
@@ -329,7 +382,6 @@ class _HomeViewState extends State<HomeView> {
                   ),
               ],
             ),
-
 
             // ⬇️ Your Conditional From/To Input Fields
             Consumer2<ShowRouteToggleProvider, MapSearchProvider>(
@@ -380,9 +432,9 @@ class _HomeViewState extends State<HomeView> {
                                     ),
                                     child: Row(
                                       crossAxisAlignment:
-                                      CrossAxisAlignment.center,
+                                          CrossAxisAlignment.center,
                                       mainAxisAlignment:
-                                      MainAxisAlignment.start,
+                                          MainAxisAlignment.start,
                                       children: [
                                         Icon(
                                           Icons.directions,
@@ -393,16 +445,13 @@ class _HomeViewState extends State<HomeView> {
                                         Column(
                                           spacing: 8.h,
                                           crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                              CrossAxisAlignment.start,
                                           mainAxisAlignment:
-                                          MainAxisAlignment.start,
+                                              MainAxisAlignment.start,
                                           children: [
                                             // From location and to location
                                             Text(
-                                              'From: ${mapSearchProvider
-                                                  .fromController
-                                                  .text}\nTo: ${mapSearchProvider
-                                                  .toController.text}',
+                                              'From: ${mapSearchProvider.fromController.text}\nTo: ${mapSearchProvider.toController.text}',
                                               style: TextStyle(
                                                 fontSize: 14.sp,
                                                 fontWeight: FontWeight.bold,
@@ -412,9 +461,7 @@ class _HomeViewState extends State<HomeView> {
 
                                             // calculated distance
                                             Text(
-                                              '${mapSearchProvider
-                                                  .calculatedDistance!
-                                                  .toStringAsFixed(2)} km',
+                                              '${mapSearchProvider.calculatedDistance!.toStringAsFixed(2)} km',
                                               style: TextStyle(
                                                 fontSize: 12.sp,
                                                 fontWeight: FontWeight.w600,

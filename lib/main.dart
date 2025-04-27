@@ -70,6 +70,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => locator.get<TermsPrivacyLauncherProvider>(),
         ),
+
+        // add ambulance address status provider
+        ChangeNotifierProvider(
+          create: (context) => locator.get<AddAmbulanceAddressStatusProvider>(),
+        ),
       ],
       child: ScreenUtilInit(
         designSize: const Size(360, 690),

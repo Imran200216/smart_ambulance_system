@@ -46,9 +46,9 @@ class MapSearchProvider extends ChangeNotifier {
   /// Address to LatLng
   /// --------------------------
   Future<void> convertAddressToLatLng(
-      String address, {
-        bool isFrom = true,
-      }) async {
+    String address, {
+    bool isFrom = true,
+  }) async {
     try {
       List<Location> locations = await locationFromAddress(address);
       if (locations.isNotEmpty) {
@@ -173,7 +173,8 @@ class MapSearchProvider extends ChangeNotifier {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) return;
+          permission == LocationPermission.deniedForever)
+        return;
     }
 
     Position position = await Geolocator.getCurrentPosition(
@@ -266,36 +267,52 @@ class MapSearchProvider extends ChangeNotifier {
 
       final url =
           'https://nominatim.openstreetmap.org/search?format=json&limit=50&q=hospital&bounded=1&viewbox=${lon - 0.2},${lat + 0.2},${lon + 0.2},${lat - 0.2}';
-      final response = await http.get(Uri.parse(url));
-      final data = jsonDecode(response.body);
 
-      nearbyHospitals.clear();
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'User-Agent': 'MyAwesomeApp/1.0 (myemail@example.com)'},
+      );
 
-      if (response.statusCode == 200 && data.isNotEmpty) {
-        for (var item in data) {
-          final hospLat = double.parse(item['lat']);
-          final hospLon = double.parse(item['lon']);
-          final name = item['display_name'];
+      // Check if the server actually responded with JSON
+      if (response.statusCode == 200 &&
+          response.headers['content-type']?.contains('application/json') ==
+              true) {
+        final data = jsonDecode(response.body);
 
-          final distance = const latlong.Distance().as(
-            LengthUnit.Kilometer,
-            LatLng(lat, lon),
-            LatLng(hospLat, hospLon),
-          );
+        nearbyHospitals.clear();
 
-          if (distance <= 20) {
-            nearbyHospitals.add(
-              Hospital(
-                name: name,
-                latitude: hospLat,
-                longitude: hospLon,
-                distanceInKm: distance,
-              ),
+        if (data.isNotEmpty) {
+          for (var item in data) {
+            final hospLat = double.parse(item['lat']);
+            final hospLon = double.parse(item['lon']);
+            final name = item['display_name'];
+
+            final distance = const latlong.Distance().as(
+              latlong.LengthUnit.Kilometer,
+              latlong.LatLng(lat, lon),
+              latlong.LatLng(hospLat, hospLon),
             );
+
+            if (distance <= 20) {
+              nearbyHospitals.add(
+                Hospital(
+                  name: name,
+                  latitude: hospLat,
+                  longitude: hospLon,
+                  distanceInKm: distance,
+                ),
+              );
+            }
           }
         }
+
+        // Assuming this is inside a ChangeNotifier class
+        notifyListeners();
+      } else {
+        print(
+          'Error: Server returned non-JSON or statusCode: ${response.statusCode}',
+        );
       }
-      notifyListeners();
     } catch (e) {
       print('Error fetching hospitals: $e');
     }
