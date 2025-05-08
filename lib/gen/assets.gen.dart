@@ -63,6 +63,9 @@ class $AssetsIconSvgGen {
   /// File path: assets/icon/svg/password.svg
   String get password => 'assets/icon/svg/password.svg';
 
+  /// File path: assets/icon/svg/splash.svg
+  String get splash => 'assets/icon/svg/splash.svg';
+
   /// List of all assets
   List<String> get values => [
     call,
@@ -73,6 +76,7 @@ class $AssetsIconSvgGen {
     email,
     login,
     password,
+    splash,
   ];
 }
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
+import 'package:smart_ambulance_system/gen/assets.gen.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -13,7 +15,6 @@ class SplashView extends StatefulWidget {
 class _SplashViewState extends State<SplashView> {
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     navigateToNextScreen(context);
   }
@@ -49,17 +50,23 @@ class _SplashViewState extends State<SplashView> {
       child: Scaffold(
         body: Center(
           child: Column(
+            spacing: 10,
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Spacer(),
+              // SAS Logo
+              SvgPicture.asset(
+                Assets.icon.svg.splash,
+                height: 120.h,
+                width: 120.w,
+                fit: BoxFit.cover,
+              ),
 
               // Logo text
               Text(
                 "Smart Ambulance",
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20.sp),
               ),
-
-              Spacer(),
             ],
           ),
         ),
